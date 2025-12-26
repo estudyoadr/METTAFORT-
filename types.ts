@@ -1,4 +1,3 @@
-
 export interface User {
   name: string;
   email: string;
@@ -14,7 +13,14 @@ export enum Page {
   MEDITACAO = 'meditacao',
   PROGRESSO = 'progresso',
   SERVICOS = 'servicos',
-  LIVE = 'live'
+  LIVE = 'live',
+  ADMIN_LEADS = 'admin_leads'
+}
+
+export interface Lead {
+    name: string;
+    email: string;
+    date: string;
 }
 
 export interface ChatMessage {

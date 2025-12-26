@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="MettaFort" />
     
-    <!-- Meta Tags para Compartilhamento (WhatsApp, Instagram, LinkedIn) -->
+    <!-- Meta Tags para Compartilhamento -->
     <meta property="og:title" content="MettaFort - Inteligência Emocional" />
     <meta property="og:description" content="Sua plataforma de suporte emocional e autoconhecimento baseada em Psicanálise. Disponível 24/7." />
     <meta property="og:image" content="/vite.svg" />
@@ -24,6 +24,7 @@
       body {
         overscroll-behavior-y: contain;
         -webkit-tap-highlight-color: transparent;
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
       }
       @keyframes pulse-soft {
         0%, 100% { transform: scale(1); opacity: 1; }
@@ -32,9 +33,18 @@
       .animate-pulse-soft {
         animation: pulse-soft 3s ease-in-out infinite;
       }
-      /* Previne zoom indesejado em inputs no iOS */
       input, textarea {
         font-size: 16px !important;
+      }
+      ::-webkit-scrollbar {
+        width: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #0d9488;
+        border-radius: 10px;
       }
     </style>
   <script type="importmap">
@@ -50,7 +60,7 @@
 }
 </script>
 </head>
-  <body class="bg-gray-50">
+  <body class="bg-gray-50 text-gray-900">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

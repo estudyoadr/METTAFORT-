@@ -1,22 +1,35 @@
-
 import React from 'react';
 
 interface SubtleCTAProps {
   text: string;
   buttonText: string;
-  onClick: () => void;
+  onClick?: () => void;
+  externalLink?: string;
 }
 
-export const SubtleCTA: React.FC<SubtleCTAProps> = ({ text, buttonText, onClick }) => {
+export const SubtleCTA: React.FC<SubtleCTAProps> = ({ text, buttonText, onClick, externalLink }) => {
+  const buttonClasses = "inline-block bg-teal-600 text-white font-semibold py-2 px-6 rounded-lg hover:bg-teal-700 transition-all shadow-sm hover:shadow-md active:scale-95";
+
   return (
-    <div className="mt-8 p-5 bg-teal-50/50 border border-teal-100 rounded-lg text-center animate-fade-in">
-      <p className="text-teal-800 text-sm md:text-base mb-4">{text}</p>
-      <button
-        onClick={onClick}
-        className="inline-block bg-teal-600 text-white font-semibold py-2 px-5 rounded-lg hover:bg-teal-700 transition-colors shadow-sm hover:shadow-md"
-      >
-        {buttonText}
-      </button>
+    <div className="mt-8 p-6 bg-teal-50/50 border border-teal-100 rounded-2xl text-center animate-fade-in">
+      <p className="text-teal-900 text-sm md:text-base mb-4 font-medium">{text}</p>
+      {externalLink ? (
+        <a
+          href={externalLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={buttonClasses}
+        >
+          {buttonText}
+        </a>
+      ) : (
+        <button
+          onClick={onClick}
+          className={buttonClasses}
+        >
+          {buttonText}
+        </button>
+      )}
     </div>
   );
 };

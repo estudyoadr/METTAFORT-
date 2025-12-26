@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Page, User } from './types';
 import { LoginPage } from './components/LoginPage';
@@ -14,16 +13,22 @@ import { MeditacaoPage } from './components/MeditacaoPage';
 import { ProgressoPage } from './components/ProgressoPage';
 import { ServicosPage } from './components/ServicosPage';
 import { MettaLivePage } from './components/MettaLivePage';
+import { AdminLeads } from './components/AdminLeads';
 import { HomeIcon } from './components/icons/HomeIcon';
 import { BrainIcon } from './components/icons/BrainIcon';
 import { ChartIcon } from './components/icons/ChartIcon';
 import { CalendarIcon } from './components/icons/CalendarIcon';
 import { MicIcon } from './components/icons/MicIcon';
+import { HeartIcon } from './components/icons/HeartIcon';
 import { registerLead } from './services/geminiService';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [currentPage, setCurrentPage] = useState<Page>(Page.HOME);
+  const [adminUnlocked, setAdminUnlocked] = useState(false);
+
+  // A função é secreta: apenas se o nome contiver Adão E o modo admin for desbloqueado via gatilho
+  const isAdmin = (user?.name.toLowerCase().includes("adão") || user?.name.toLowerCase().includes("adao")) && adminUnlocked;
 
   useEffect(() => {
     const savedUser = localStorage.getItem('mettafort_user');
@@ -45,7 +50,14 @@ const App: React.FC = () => {
   const handleLogout = () => {
     setUser(null);
     setCurrentPage(Page.HOME);
+    setAdminUnlocked(false);
     localStorage.removeItem('mettafort_user');
+  };
+
+  const handleSecretTrigger = () => {
+    setAdminUnlocked(prev => !prev);
+    // Feedback visual discreto para o dono
+    console.log("Modo Admin Alternado");
   };
 
   const renderPage = () => {
@@ -60,6 +72,7 @@ const App: React.FC = () => {
       case Page.PROGRESSO: return <ProgressoPage onNavigate={setCurrentPage} />;
       case Page.SERVICOS: return <ServicosPage />;
       case Page.LIVE: return <MettaLivePage />;
+      case Page.ADMIN_LEADS: return isAdmin ? <AdminLeads /> : <HomePage user={user} onNavigate={setCurrentPage} />;
       case Page.HOME:
       default:
         return <HomePage user={user} onNavigate={setCurrentPage} />;
@@ -68,7 +81,7 @@ const App: React.FC = () => {
 
   const navItems = [
     { page: Page.HOME, label: "Painel", icon: HomeIcon },
-    { page: Page.LIVE, label: "Consultar Live", icon: MicIcon },
+    { page: Page.LIVE, label: "Metta Live", icon: MicIcon },
     { page: Page.PROGRESSO, label: "Progresso", icon: ChartIcon },
     { page: Page.ANGUSTIAS, label: "Angústias", icon: BrainIcon },
     { page: Page.SERVICOS, label: "Serviços", icon: CalendarIcon },
@@ -80,7 +93,7 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#FDFDFD] selection:bg-teal-100">
-      <Header user={user} onLogout={handleLogout} />
+      <Header user={user} onLogout={handleLogout} onSecretTrigger={handleSecretTrigger} />
       <div className="flex-1 w-full max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row gap-8">
         <aside className="hidden md:block w-72">
             <nav className="sticky top-28 space-y-3">
@@ -98,6 +111,19 @@ const App: React.FC = () => {
                         <span>{item.label}</span>
                     </button>
                 ))}
+                {isAdmin && (
+                  <button
+                    onClick={() => setCurrentPage(Page.ADMIN_LEADS)}
+                    className={`w-full flex items-center px-6 py-4 text-sm font-bold rounded-2xl transition-all border-2 border-dashed ${
+                        currentPage === Page.ADMIN_LEADS
+                            ? 'bg-rose-500 text-white border-rose-500'
+                            : 'text-rose-500 border-rose-200 hover:bg-rose-50'
+                    }`}
+                  >
+                    <HeartIcon className="w-5 h-5 mr-4 flex-shrink-0" />
+                    <span>Leads (Secreto)</span>
+                  </button>
+                )}
             </nav>
         </aside>
 
@@ -108,7 +134,7 @@ const App: React.FC = () => {
       
       {/* Mobile Bottom Nav */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-100 flex justify-around p-3 z-50 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
-        {navItems.map(item => (
+        {navItems.slice(0, 5).map(item => (
             <button
                 key={item.page}
                 onClick={() => setCurrentPage(item.page)}
@@ -118,6 +144,15 @@ const App: React.FC = () => {
                 <span className="text-[10px] mt-1 font-bold">{item.label}</span>
             </button>
         ))}
+        {isAdmin && (
+            <button
+                onClick={() => setCurrentPage(Page.ADMIN_LEADS)}
+                className={`p-2 rounded-xl flex flex-col items-center transition-all ${currentPage === Page.ADMIN_LEADS ? 'text-rose-500 scale-110' : 'text-gray-400'}`}
+            >
+                <HeartIcon className="w-6 h-6" />
+                <span className="text-[10px] mt-1 font-bold">Leads</span>
+            </button>
+        )}
       </nav>
       
       <Footer />

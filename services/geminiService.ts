@@ -1,19 +1,16 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import type { MoodEntry, ChatMessage, Exercise, User } from '../types';
+import type { MoodEntry, ChatMessage, Exercise, User, Lead } from '../types';
 
 const FAST_MODEL = "gemini-3-flash-preview";
 const PRO_MODEL = "gemini-3-pro-preview";
 
 const getAIInstance = () => {
-    // O Vite injeta o process.env.API_KEY conforme configurado no vite.config.js
     return new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 };
 
 const getGeminiResponse = async (prompt: string, systemInstruction?: string, model = FAST_MODEL, useThinking = false): Promise<string> => {
     try {
         const ai = getAIInstance();
-        
-        // Seguindo as diretrizes: contents pode ser uma string direta para prompts simples.
         const response = await ai.models.generateContent({
             model: model,
             contents: prompt,
@@ -21,26 +18,59 @@ const getGeminiResponse = async (prompt: string, systemInstruction?: string, mod
                 systemInstruction,
                 temperature: 0.8,
                 topP: 0.95,
-                // Somente usamos thinking se solicitado e for um modelo PRO, 
-                // para evitar problemas de configuração em modelos flash.
                 ...(useThinking && model === PRO_MODEL ? { thinkingConfig: { thinkingBudget: 2000 } } : {})
             }
         });
-
         return response.text || "Aguardando nova percepção...";
     } catch (error: any) {
         console.error("MettaFort AI Error:", error);
-        // Retorna uma frase de fallback amigável caso a API falhe (ex: quota, chave inválida)
         return "Neste momento, as palavras repousam no silêncio. Tente refletir sobre sua respiração por um instante.";
     }
 };
 
 export const registerLead = async (user: User) => {
+    const today = new Date().toLocaleString('pt-BR');
+    
+    // 1. Salva localmente para o painel Admin
+    try {
+        const currentLeads: Lead[] = JSON.parse(localStorage.getItem('mettafort_captured_leads') || '[]');
+        if (!currentLeads.some(l => l.email === user.email)) {
+            const newLead: Lead = { ...user, date: today };
+            localStorage.setItem('mettafort_captured_leads', JSON.stringify([newLead, ...currentLeads]));
+        }
+    } catch (e) {
+        console.error("Local lead save error", e);
+    }
+
+    // 2. Dispara e-mail via FormSubmit (AJAX)
+    // Substitua pelo seu e-mail real aqui ou mantenha o placeholder profissional
+    const ADMIN_EMAIL = "contato@mettafort.com.br";
+    try {
+        await fetch(`https://formsubmit.co/ajax/${ADMIN_EMAIL}`, {
+            method: "POST",
+            headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                subject: "NOVO LEAD: MettaFort App",
+                nome: user.name,
+                email: user.email,
+                data: today,
+                plataforma: "MettaFort Inteligência Emocional"
+            })
+        });
+        console.log("Lead enviado por e-mail com sucesso.");
+    } catch (err) {
+        console.error("Erro ao disparar e-mail de lead", err);
+    }
+
+    // 3. Log silencioso na IA (opcional)
     try {
         const ai = getAIInstance();
         await ai.models.generateContent({
             model: FAST_MODEL,
-            contents: `LOG_USER_ENTRY: ${user.name} (${user.email})`,
+            contents: `REGISTRO DE LEAD: ${user.name} (${user.email}) em ${today}`,
             config: { systemInstruction: "Silent logger." }
         });
     } catch (e) {}
@@ -59,7 +89,6 @@ export const getAngustiaResponse = async (prompt: string): Promise<string> => {
 export const getQAresponse = async (prompt: string, history: ChatMessage[]): Promise<string> => {
     try {
         const ai = getAIInstance();
-        // Para o chat, usamos a estrutura simplificada de sendMessage
         const chat = ai.chats.create({
             model: FAST_MODEL,
             config: { systemInstruction: "Você é o Metta. Um assistente acolhedor e sábio." }
