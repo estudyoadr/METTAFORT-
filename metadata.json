@@ -1,0 +1,7 @@
+{
+  "name": "METTA FORT",
+  "description": "Uma plataforma digital baseada em princípios de Psicologia e Psicanálise, projetada para oferecer suporte emocional 24/7 de forma acolhedora, intuitiva e acessível. Visa auxiliar usuários em momentos de ansiedade, angústia e autodescoberta, promovendo equilíbrio emocional e desenvolvimento pessoal.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
