@@ -5,30 +5,33 @@ const FAST_MODEL = "gemini-3-flash-preview";
 const PRO_MODEL = "gemini-3-pro-preview";
 
 const getAIInstance = () => {
-    const key = process.env.API_KEY;
-    if (!key) {
-        console.warn("API_KEY não configurada no ambiente.");
-    }
-    return new GoogleGenAI({ apiKey: key || '' });
+    // O Vite injeta o process.env.API_KEY conforme configurado no vite.config.js
+    return new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 };
 
 const getGeminiResponse = async (prompt: string, systemInstruction?: string, model = FAST_MODEL, useThinking = false): Promise<string> => {
     try {
         const ai = getAIInstance();
+        
+        // Seguindo as diretrizes: contents pode ser uma string direta para prompts simples.
         const response = await ai.models.generateContent({
             model: model,
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            contents: prompt,
             config: {
                 systemInstruction,
-                temperature: 0.9, // Aumentado para maior variabilidade criativa
+                temperature: 0.8,
                 topP: 0.95,
-                ...(useThinking && model.includes('pro') ? { thinkingConfig: { thinkingBudget: 4000 } } : {})
+                // Somente usamos thinking se solicitado e for um modelo PRO, 
+                // para evitar problemas de configuração em modelos flash.
+                ...(useThinking && model === PRO_MODEL ? { thinkingConfig: { thinkingBudget: 2000 } } : {})
             }
         });
+
         return response.text || "Aguardando nova percepção...";
     } catch (error: any) {
-        console.error("Gemini Error:", error);
-        return "Neste momento, o silêncio convida à introspecção. (Erro técnico de conexão)";
+        console.error("MettaFort AI Error:", error);
+        // Retorna uma frase de fallback amigável caso a API falhe (ex: quota, chave inválida)
+        return "Neste momento, as palavras repousam no silêncio. Tente refletir sobre sua respiração por um instante.";
     }
 };
 
@@ -37,40 +40,43 @@ export const registerLead = async (user: User) => {
         const ai = getAIInstance();
         await ai.models.generateContent({
             model: FAST_MODEL,
-            contents: `USER_LOGIN: ${user.name} (${user.email})`,
-            config: { systemInstruction: "Log event." }
+            contents: `LOG_USER_ENTRY: ${user.name} (${user.email})`,
+            config: { systemInstruction: "Silent logger." }
         });
     } catch (e) {}
 };
 
 export const getDailySuggestion = async (mood: MoodEntry | null): Promise<string> => {
-    const moodText = mood ? `Estado atual: ${mood.mood_name}` : 'Estado indefinido';
-    const prompt = `Com base no estado "${moodText}", ofereça uma única orientação psicológica prática e profunda para o bem-estar agora.`;
-    return getGeminiResponse(prompt, "Você é o MettaFort Mentor. Use uma linguagem que mescla acolhimento humanista e clareza analítica. Evite clichês motivacionais.");
+    const moodText = mood ? `O usuário está se sentindo: ${mood.mood_name}` : 'Estado emocional não registrado hoje.';
+    const prompt = `${moodText}. Com base nisso, dê um conselho curto e profundo para ajudar no equilíbrio emocional.`;
+    return getGeminiResponse(prompt, "Você é o Metta, um mentor de inteligência emocional. Seja breve, empático e evite clichês.");
 }
 
 export const getAngustiaResponse = async (prompt: string): Promise<string> => {
-    return getGeminiResponse(prompt, "Atue como um analista de orientação psicanalítica. Não dê soluções rápidas; devolva perguntas reflexivas e interpretações simbólicas sobre a angústia relatada.", PRO_MODEL, true);
+    return getGeminiResponse(prompt, "Você é um analista psicanalítico. Ouça a angústia e devolva uma interpretação que convide o usuário a olhar para o seu próprio desejo.", PRO_MODEL, true);
 };
 
 export const getQAresponse = async (prompt: string, history: ChatMessage[]): Promise<string> => {
     try {
         const ai = getAIInstance();
+        // Para o chat, usamos a estrutura simplificada de sendMessage
         const chat = ai.chats.create({
             model: FAST_MODEL,
-            config: { systemInstruction: "Você é o Metta. Um assistente que utiliza conceitos de inteligência emocional e psicologia para dialogar de forma empática." }
+            config: { systemInstruction: "Você é o Metta. Um assistente acolhedor e sábio." }
         });
         const response = await chat.sendMessage({ message: prompt });
-        return response.text || "Prossiga, estou te ouvindo...";
+        return response.text || "Estou te ouvindo...";
     } catch (error) {
-        return "Sinto uma interrupção no nosso diálogo. Poderia retomar seu pensamento?";
+        console.error("Chat Error:", error);
+        return "Houve uma breve interrupção em nossa sintonia. Poderia repetir?";
     }
 };
 
 export const getWeeklySummary = async (moods: MoodEntry[]): Promise<string> => {
-    if (moods.length === 0) return "Sua jornada está sendo escrita. Comece registrando como se sente hoje.";
+    if (moods.length === 0) return "Sua jornada emocional ainda está sendo traçada.";
     const moodsString = moods.map(m => m.mood_name).join(', ');
-    return getGeminiResponse(`Analise esta sequência emocional: ${moodsString}`, "Faça uma síntese poética e psicológica da semana do usuário, apontando possíveis movimentos do inconsciente.", PRO_MODEL, true);
+    const prompt = `Analise os sentimentos da semana: ${moodsString}. Faça um resumo psicológico breve.`;
+    return getGeminiResponse(prompt, "Analista emocional. Faça sínteses poéticas e precisas.", PRO_MODEL, true);
 };
 
 export const getExercises = async (): Promise<Exercise[]> => {
@@ -78,7 +84,7 @@ export const getExercises = async (): Promise<Exercise[]> => {
         const ai = getAIInstance();
         const response = await ai.models.generateContent({
             model: FAST_MODEL,
-            contents: "Gere 3 exercícios de autorreflexão psicológica. JSON format.",
+            contents: "Gere 3 exercícios curtos de autorreflexão. Formato JSON.",
             config: {
                 responseMimeType: "application/json",
                 responseSchema: {
@@ -97,16 +103,15 @@ export const getExercises = async (): Promise<Exercise[]> => {
         });
         return JSON.parse(response.text);
     } catch (error) {
-        return [{ title: 'Pausa Reflexiva', description: 'Observe seus pensamentos como nuvens passando.', emoji: '☁️' }];
+        return [{ title: 'Respiração Consciente', description: 'Inspire em 4 tempos, segure em 4, expire em 4.', emoji: '🧘' }];
     }
 };
 
 export const getDreamInterpretation = async (dreamText: string): Promise<string> => {
-    return getGeminiResponse(`Sonho: ${dreamText}`, "Interprete sob a ótica da psicologia analítica (Jung). Explore símbolos, arquétipos e a compensação do ego.", PRO_MODEL, true);
+    const prompt = `Sonho relatado: ${dreamText}. Ofereça uma perspectiva baseada na psicologia simbólica.`;
+    return getGeminiResponse(prompt, "Especialista em sonhos e símbolos do inconsciente.", PRO_MODEL, true);
 };
 
 export const getDailyReflection = async (): Promise<string> => {
-    const seeds = ["existencialismo", "desejo", "tempo", "perda", "individuação", "sombra", "afeto", "linguagem"];
-    const randomSeed = seeds[Math.floor(Math.random() * seeds.length)];
-    return getGeminiResponse(`Gere uma frase curta e profunda sobre ${randomSeed}.`, "Você é um sábio analista. Produza reflexões que soem como aforismos filosóficos e psicológicos. Seja original e evite frases feitas.");
+    return getGeminiResponse("Gere um aforismo curto sobre a vida e a mente.", "Sábio contemporâneo. Produza frases originais e profundas.");
 }

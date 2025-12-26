@@ -3,11 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="theme-color" content="#0d9488" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="MettaFort" />
+    
+    <!-- Meta Tags para Compartilhamento (WhatsApp, Instagram, LinkedIn) -->
+    <meta property="og:title" content="MettaFort - Inteligência Emocional" />
+    <meta property="og:description" content="Sua plataforma de suporte emocional e autoconhecimento baseada em Psicanálise. Disponível 24/7." />
+    <meta property="og:image" content="/vite.svg" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+
     <link rel="apple-touch-icon" href="/vite.svg" />
     <link rel="manifest" href="/manifest.json" />
     <title>METTA FORT - Inteligência Emocional</title>
@@ -15,6 +23,7 @@
     <style>
       body {
         overscroll-behavior-y: contain;
+        -webkit-tap-highlight-color: transparent;
       }
       @keyframes pulse-soft {
         0%, 100% { transform: scale(1); opacity: 1; }
@@ -22,6 +31,10 @@
       }
       .animate-pulse-soft {
         animation: pulse-soft 3s ease-in-out infinite;
+      }
+      /* Previne zoom indesejado em inputs no iOS */
+      input, textarea {
+        font-size: 16px !important;
       }
     </style>
   <script type="importmap">
