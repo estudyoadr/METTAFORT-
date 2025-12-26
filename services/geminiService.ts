@@ -5,21 +5,12 @@ import type { MoodEntry, ChatMessage, Exercise, User } from '../types';
 const FAST_MODEL = "gemini-3-flash-preview";
 const PRO_MODEL = "gemini-3-pro-preview";
 
-// Função para obter a instância do SDK de forma segura
-const getAI = () => {
-    const apiKey = process.env.API_KEY;
-    if (!apiKey) {
-        console.warn("API_KEY não encontrada. Verifique as variáveis de ambiente.");
-        return null;
-    }
-    return new GoogleGenAI({ apiKey });
-};
+// Helper para garantir instância limpa com a chave de ambiente
+const getAIInstance = () => new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
 const getGeminiResponse = async (prompt: string, systemInstruction?: string, model = FAST_MODEL, useThinking = false): Promise<string> => {
     try {
-        const ai = getAI();
-        if (!ai) return "Sistema em manutenção (Erro de Configuração).";
-
+        const ai = getAIInstance();
         const response = await ai.models.generateContent({
             model: model,
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
@@ -38,13 +29,12 @@ const getGeminiResponse = async (prompt: string, systemInstruction?: string, mod
 };
 
 export const registerLead = async (user: User) => {
-    const ai = getAI();
-    if (!ai) return;
     try {
+        const ai = getAIInstance();
         await ai.models.generateContent({
             model: FAST_MODEL,
             contents: `NEW_USER: ${user.name} (${user.email})`,
-            config: { systemInstruction: "Register lead internally for adaomarianno@gmail.com" }
+            config: { systemInstruction: "Register lead internally." }
         });
     } catch (e) {}
 };
@@ -59,9 +49,7 @@ export const getAngustiaResponse = async (prompt: string): Promise<string> => {
 };
 
 export const getQAresponse = async (prompt: string, history: ChatMessage[]): Promise<string> => {
-    const ai = getAI();
-    if (!ai) return "Serviço indisponível.";
-    
+    const ai = getAIInstance();
     const contents = [
         ...history.map(msg => ({ role: msg.role, parts: [{ text: msg.text }] })),
         { role: 'user', parts: [{ text: prompt }] }
@@ -86,9 +74,8 @@ export const getWeeklySummary = async (moods: MoodEntry[]): Promise<string> => {
 };
 
 export const getExercises = async (): Promise<Exercise[]> => {
-    const ai = getAI();
-    if (!ai) return [];
     try {
+        const ai = getAIInstance();
         const response = await ai.models.generateContent({
             model: FAST_MODEL,
             contents: "Gere 3 exercícios de psicologia positiva. JSON format.",
