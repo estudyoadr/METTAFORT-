@@ -1,12 +1,16 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import type { MoodEntry, ChatMessage, Exercise, User } from '../types';
 
 const FAST_MODEL = "gemini-3-flash-preview";
 const PRO_MODEL = "gemini-3-pro-preview";
 
-// Helper para garantir instância limpa com a chave de ambiente
-const getAIInstance = () => new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+const getAIInstance = () => {
+    const key = process.env.API_KEY;
+    if (!key) {
+        console.warn("API_KEY não configurada no ambiente.");
+    }
+    return new GoogleGenAI({ apiKey: key || '' });
+};
 
 const getGeminiResponse = async (prompt: string, systemInstruction?: string, model = FAST_MODEL, useThinking = false): Promise<string> => {
     try {
@@ -16,15 +20,15 @@ const getGeminiResponse = async (prompt: string, systemInstruction?: string, mod
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
             config: {
                 systemInstruction,
-                temperature: 0.7,
-                topP: 0.9,
+                temperature: 0.9, // Aumentado para maior variabilidade criativa
+                topP: 0.95,
                 ...(useThinking && model.includes('pro') ? { thinkingConfig: { thinkingBudget: 4000 } } : {})
             }
         });
-        return response.text || "Não consegui processar agora.";
-    } catch (error) {
+        return response.text || "Aguardando nova percepção...";
+    } catch (error: any) {
         console.error("Gemini Error:", error);
-        return "Tive um problema técnico. Tente novamente em alguns instantes.";
+        return "Neste momento, o silêncio convida à introspecção. (Erro técnico de conexão)";
     }
 };
 
@@ -33,44 +37,40 @@ export const registerLead = async (user: User) => {
         const ai = getAIInstance();
         await ai.models.generateContent({
             model: FAST_MODEL,
-            contents: `NEW_USER: ${user.name} (${user.email})`,
-            config: { systemInstruction: "Register lead internally." }
+            contents: `USER_LOGIN: ${user.name} (${user.email})`,
+            config: { systemInstruction: "Log event." }
         });
     } catch (e) {}
 };
 
 export const getDailySuggestion = async (mood: MoodEntry | null): Promise<string> => {
-    const moodText = mood ? `Humor: ${mood.mood_name}` : 'Sem humor hoje';
-    return getGeminiResponse(`Sugira uma atividade breve para: ${moodText}`, "Você é o MettaFort Mentor.");
+    const moodText = mood ? `Estado atual: ${mood.mood_name}` : 'Estado indefinido';
+    const prompt = `Com base no estado "${moodText}", ofereça uma única orientação psicológica prática e profunda para o bem-estar agora.`;
+    return getGeminiResponse(prompt, "Você é o MettaFort Mentor. Use uma linguagem que mescla acolhimento humanista e clareza analítica. Evite clichês motivacionais.");
 }
 
 export const getAngustiaResponse = async (prompt: string): Promise<string> => {
-    return getGeminiResponse(prompt, "Escuta analítica empática. Devolva reflexões.", PRO_MODEL, true);
+    return getGeminiResponse(prompt, "Atue como um analista de orientação psicanalítica. Não dê soluções rápidas; devolva perguntas reflexivas e interpretações simbólicas sobre a angústia relatada.", PRO_MODEL, true);
 };
 
 export const getQAresponse = async (prompt: string, history: ChatMessage[]): Promise<string> => {
-    const ai = getAIInstance();
-    const contents = [
-        ...history.map(msg => ({ role: msg.role, parts: [{ text: msg.text }] })),
-        { role: 'user', parts: [{ text: prompt }] }
-    ] as any;
-
     try {
-        const response = await ai.models.generateContent({
+        const ai = getAIInstance();
+        const chat = ai.chats.create({
             model: FAST_MODEL,
-            contents,
-            config: { systemInstruction: "Você é o Metta, assistente de bem-estar." }
+            config: { systemInstruction: "Você é o Metta. Um assistente que utiliza conceitos de inteligência emocional e psicologia para dialogar de forma empática." }
         });
-        return response.text || "Diga mais...";
+        const response = await chat.sendMessage({ message: prompt });
+        return response.text || "Prossiga, estou te ouvindo...";
     } catch (error) {
-        return "Tive um lapso, repita?";
+        return "Sinto uma interrupção no nosso diálogo. Poderia retomar seu pensamento?";
     }
 };
 
 export const getWeeklySummary = async (moods: MoodEntry[]): Promise<string> => {
-    if (moods.length === 0) return "Registre seu humor para análise.";
+    if (moods.length === 0) return "Sua jornada está sendo escrita. Comece registrando como se sente hoje.";
     const moodsString = moods.map(m => m.mood_name).join(', ');
-    return getGeminiResponse(`Analise estes humores: ${moodsString}`, "Analista poético e psicológico.", PRO_MODEL, true);
+    return getGeminiResponse(`Analise esta sequência emocional: ${moodsString}`, "Faça uma síntese poética e psicológica da semana do usuário, apontando possíveis movimentos do inconsciente.", PRO_MODEL, true);
 };
 
 export const getExercises = async (): Promise<Exercise[]> => {
@@ -78,7 +78,7 @@ export const getExercises = async (): Promise<Exercise[]> => {
         const ai = getAIInstance();
         const response = await ai.models.generateContent({
             model: FAST_MODEL,
-            contents: "Gere 3 exercícios de psicologia positiva. JSON format.",
+            contents: "Gere 3 exercícios de autorreflexão psicológica. JSON format.",
             config: {
                 responseMimeType: "application/json",
                 responseSchema: {
@@ -97,14 +97,16 @@ export const getExercises = async (): Promise<Exercise[]> => {
         });
         return JSON.parse(response.text);
     } catch (error) {
-        return [{ title: 'Respiração', description: 'Inspire e expire.', emoji: '🧘' }];
+        return [{ title: 'Pausa Reflexiva', description: 'Observe seus pensamentos como nuvens passando.', emoji: '☁️' }];
     }
 };
 
 export const getDreamInterpretation = async (dreamText: string): Promise<string> => {
-    return getGeminiResponse(`Sonho: ${dreamText}`, "Analista junguiano.", PRO_MODEL, true);
+    return getGeminiResponse(`Sonho: ${dreamText}`, "Interprete sob a ótica da psicologia analítica (Jung). Explore símbolos, arquétipos e a compensação do ego.", PRO_MODEL, true);
 };
 
 export const getDailyReflection = async (): Promise<string> => {
-    return getGeminiResponse("Frase curta para reflexão.", "Sábio analítico.");
+    const seeds = ["existencialismo", "desejo", "tempo", "perda", "individuação", "sombra", "afeto", "linguagem"];
+    const randomSeed = seeds[Math.floor(Math.random() * seeds.length)];
+    return getGeminiResponse(`Gere uma frase curta e profunda sobre ${randomSeed}.`, "Você é um sábio analista. Produza reflexões que soem como aforismos filosóficos e psicológicos. Seja original e evite frases feitas.");
 }

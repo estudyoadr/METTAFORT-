@@ -27,11 +27,16 @@ const moodOptions = [
     { mood: '😟', name: 'Ansioso' }
 ];
 
-const ToolCard: React.FC<{ title: string; page: Page; icon: React.ReactElement<{ className?: string }>; onNavigate: (page: Page) => void; primary?: boolean }> = ({ title, page, icon, onNavigate, primary }) => (
+const ToolCard: React.FC<{ title: string; page: Page; icon: React.ReactElement<{ className?: string }>; onNavigate: (page: Page) => void; primary?: boolean; badge?: string }> = ({ title, page, icon, onNavigate, primary, badge }) => (
     <div 
-        className={`p-4 rounded-2xl shadow-sm border transition cursor-pointer transform hover:-translate-y-1 flex flex-col items-center text-center ${primary ? 'bg-teal-600 border-teal-600 hover:bg-teal-700' : 'bg-white border-gray-100 hover:border-teal-300 hover:shadow-md'}`}
+        className={`p-4 rounded-2xl shadow-sm border transition cursor-pointer transform hover:-translate-y-1 flex flex-col items-center text-center relative ${primary ? 'bg-teal-600 border-teal-600 hover:bg-teal-700' : 'bg-white border-gray-100 hover:border-teal-300 hover:shadow-md'}`}
         onClick={() => onNavigate(page)}
     >
+        {badge && (
+            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse shadow-sm">
+                {badge}
+            </span>
+        )}
         {React.cloneElement(icon, { className: `w-8 h-8 mb-3 ${primary ? 'text-white' : 'text-teal-600'}`})}
         <h3 className={`text-sm font-bold ${primary ? 'text-white' : 'text-gray-800'}`}>{title}</h3>
     </div>
@@ -59,17 +64,17 @@ export const HomePage: React.FC<HomePageProps> = ({ user, onNavigate }) => {
             const moodForToday = allMoods.find(m => m.date === todayStr);
             if (moodForToday) setTodayMood(moodForToday);
 
-            const cachedReflection = JSON.parse(localStorage.getItem('mettafort_reflection') || '{}');
-            if (cachedReflection.date === todayStr) {
-                setReflection(cachedReflection.text);
-            } else {
-                const newReflection = await getDailyReflection();
+            try {
+                const [newReflection, newSuggestion] = await Promise.all([
+                    getDailyReflection(),
+                    getDailySuggestion(moodForToday || null)
+                ]);
                 setReflection(newReflection);
-                localStorage.setItem('mettafort_reflection', JSON.stringify({ date: todayStr, text: newReflection }));
+                setSuggestion(newSuggestion);
+            } catch (err) {
+                setReflection("A quietude é o início de toda descoberta.");
+                setSuggestion("Respire fundo e tente novamente em instantes.");
             }
-
-            const newSuggestion = await getDailySuggestion(moodForToday || null);
-            setSuggestion(newSuggestion);
 
             if (moodForToday && ['Triste', 'Irritado', 'Ansioso', 'Inquieto'].includes(moodForToday.mood_name)) {
                 const advices: Advice[] = JSON.parse(localStorage.getItem('mettafort_advices') || '[]');
@@ -93,7 +98,7 @@ export const HomePage: React.FC<HomePageProps> = ({ user, onNavigate }) => {
 
     return (
         <div className="space-y-8 animate-fade-in pb-10">
-            {/* Elegant Header */}
+            {/* Header */}
             <div className="relative overflow-hidden bg-gradient-to-br from-teal-50 to-white p-8 rounded-3xl border border-teal-100 shadow-sm">
                 <div className="relative z-10">
                     <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">{greeting}, {user.name.split(' ')[0]}.</h1>
@@ -102,25 +107,25 @@ export const HomePage: React.FC<HomePageProps> = ({ user, onNavigate }) => {
                 <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-teal-200 rounded-full opacity-10 blur-3xl"></div>
             </div>
             
-            {/* Intelligent Insight Cards */}
+            {/* Insight Cards */}
             <div className="grid md:grid-cols-2 gap-6">
                 <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition">
                     <div className="flex items-center space-x-2 mb-3">
                         <LotusIcon className="w-5 h-5 text-teal-500" />
-                        <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Reflexão Diária</h2>
+                        <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Reflexão do Momento</h2>
                     </div>
-                    {isLoading ? <div className="h-16 bg-gray-50 animate-pulse rounded-xl w-full"></div> : <p className="text-xl font-serif text-gray-800 leading-relaxed">"{reflection}"</p>}
+                    {isLoading ? <div className="space-y-2"><div className="h-4 bg-gray-100 rounded animate-pulse w-full"></div><div className="h-4 bg-gray-100 rounded animate-pulse w-3/4"></div></div> : <p className="text-xl font-serif text-gray-800 leading-relaxed italic">"{reflection}"</p>}
                 </div>
                 <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition">
                     <div className="flex items-center space-x-2 mb-3">
                         <BrainIcon className="w-5 h-5 text-cyan-500" />
                         <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Metta Sugere</h2>
                     </div>
-                    {isLoading ? <div className="h-16 bg-gray-50 animate-pulse rounded-xl w-full"></div> : <p className="text-gray-700 text-lg leading-snug">{suggestion}</p>}
+                    {isLoading ? <div className="space-y-2"><div className="h-4 bg-gray-100 rounded animate-pulse w-full"></div><div className="h-4 bg-gray-100 rounded animate-pulse w-1/2"></div></div> : <p className="text-gray-700 text-lg leading-snug">{suggestion}</p>}
                 </div>
             </div>
 
-            {/* Central Mood Tracker */}
+            {/* Mood Tracker */}
             <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 text-center">
                 <h2 className="text-2xl font-bold text-gray-800 mb-8">O termômetro do seu momento</h2>
                 {todayMood ? (
@@ -147,14 +152,13 @@ export const HomePage: React.FC<HomePageProps> = ({ user, onNavigate }) => {
 
             {showAdvice && <AdviceReminder advice={showAdvice} onDismiss={() => setShowAdvice(null)} />}
 
-            {/* Refined Tool Grid */}
+            {/* Tools Grid */}
             <div>
                 <div className="flex justify-between items-end mb-6">
                     <h2 className="text-2xl font-bold text-gray-800">Cuidado Integral</h2>
-                    <span className="text-sm font-medium text-teal-600">Explore as ferramentas</span>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    <ToolCard title="Metta Ao Vivo" page={Page.LIVE} icon={<MicIcon/>} onNavigate={onNavigate} primary />
+                    <ToolCard title="Consultar Live" page={Page.LIVE} icon={<MicIcon/>} onNavigate={onNavigate} primary badge="AO VIVO" />
                     <ToolCard title="Angústias" page={Page.ANGUSTIAS} icon={<BrainIcon/>} onNavigate={onNavigate} />
                     <ToolCard title="Ouvindo-se" page={Page.CONSELHO} icon={<PenIcon />} onNavigate={onNavigate} />
                     <ToolCard title="Chat Metta" page={Page.QA} icon={<ChatIcon />} onNavigate={onNavigate} />

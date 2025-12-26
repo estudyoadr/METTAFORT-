@@ -68,7 +68,7 @@ const App: React.FC = () => {
 
   const navItems = [
     { page: Page.HOME, label: "Painel", icon: HomeIcon },
-    { page: Page.LIVE, label: "Metta Live", icon: MicIcon },
+    { page: Page.LIVE, label: "Consultar Live", icon: MicIcon },
     { page: Page.PROGRESSO, label: "Progresso", icon: ChartIcon },
     { page: Page.ANGUSTIAS, label: "Angústias", icon: BrainIcon },
     { page: Page.SERVICOS, label: "Serviços", icon: CalendarIcon },

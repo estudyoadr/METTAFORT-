@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { GoogleGenAI, Modality } from '@google/genai';
 import { MicIcon } from './icons/MicIcon';
@@ -26,7 +25,8 @@ export const MettaLivePage: React.FC = () => {
     };
 
     const decodeAudioData = async (data: Uint8Array, ctx: AudioContext, sampleRate: number, numChannels: number): Promise<AudioBuffer> => {
-        const dataInt16 = new Int16Array(data.buffer);
+        // Garantir que trabalhamos com Int16 vindo da API
+        const dataInt16 = new Int16Array(data.buffer, data.byteOffset, data.byteLength / 2);
         const frameCount = dataInt16.length / numChannels;
         const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
         for (let channel = 0; channel < numChannels; channel++) {
@@ -52,7 +52,9 @@ export const MettaLivePage: React.FC = () => {
             sessionRef.current.close();
             sessionRef.current = null;
         }
-        sourcesRef.current.forEach(s => s.stop());
+        sourcesRef.current.forEach(s => {
+            try { s.stop(); } catch(e) {}
+        });
         sourcesRef.current.clear();
         
         if (streamRef.current) {
@@ -71,11 +73,11 @@ export const MettaLivePage: React.FC = () => {
         }
 
         setIsActive(false);
+        setIsConnecting(false);
         setStatus('Sessão encerrada.');
     };
 
     useEffect(() => {
-        // Cleanup on unmount
         return () => {
             stopSession();
         };
@@ -90,6 +92,11 @@ export const MettaLivePage: React.FC = () => {
             
             const inputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
             const outputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+            
+            // Resume contexts (browser policy)
+            if (inputCtx.state === 'suspended') await inputCtx.resume();
+            if (outputCtx.state === 'suspended') await outputCtx.resume();
+
             audioContextRef.current = inputCtx;
             outputAudioContextRef.current = outputCtx;
 
@@ -107,6 +114,7 @@ export const MettaLivePage: React.FC = () => {
                         const source = inputCtx.createMediaStreamSource(stream);
                         const scriptProcessor = inputCtx.createScriptProcessor(4096, 1, 1);
                         scriptProcessor.onaudioprocess = (e) => {
+                            if (!isActive && !isConnecting) return;
                             const inputData = e.inputBuffer.getChannelData(0);
                             const l = inputData.length;
                             const int16 = new Int16Array(l);
@@ -117,7 +125,9 @@ export const MettaLivePage: React.FC = () => {
                                 mimeType: 'audio/pcm;rate=16000',
                             };
                             
-                            sessionPromise.then(s => s.sendRealtimeInput({ media: pcmBlob }));
+                            sessionPromise.then(s => {
+                                try { s.sendRealtimeInput({ media: pcmBlob }); } catch(e) {}
+                            });
                         };
                         source.connect(scriptProcessor);
                         scriptProcessor.connect(inputCtx.destination);
@@ -136,12 +146,16 @@ export const MettaLivePage: React.FC = () => {
                             sourcesRef.current.add(source);
                         }
                         if (msg.serverContent?.interrupted) {
-                            sourcesRef.current.forEach(s => s.stop());
+                            sourcesRef.current.forEach(s => { try { s.stop(); } catch(e) {} });
                             sourcesRef.current.clear();
                             nextStartTimeRef.current = 0;
                         }
                     },
-                    onerror: () => setStatus('Erro na conexão.'),
+                    onerror: (e) => {
+                        console.error("Live Error", e);
+                        setStatus('Erro na conexão.');
+                        setIsConnecting(false);
+                    },
                     onclose: () => stopSession()
                 },
                 config: {
@@ -160,19 +174,23 @@ export const MettaLivePage: React.FC = () => {
     };
 
     return (
-        <div className="bg-white p-8 rounded-3xl shadow-2xl animate-fade-in flex flex-col items-center justify-center min-h-[500px] border border-teal-50">
-            <div className={`w-32 h-32 rounded-full flex items-center justify-center transition-all duration-700 ${isActive ? 'bg-teal-500 shadow-[0_0_50px_rgba(20,184,166,0.5)] scale-110' : 'bg-gray-100'}`}>
+        <div className="bg-white p-8 rounded-3xl shadow-2xl animate-fade-in flex flex-col items-center justify-center min-h-[500px] border border-teal-50 relative overflow-hidden">
+            {/* Visual feedback rings */}
+            <div className={`absolute w-64 h-64 rounded-full border border-teal-100 transition-all duration-1000 ${isActive ? 'scale-150 opacity-20' : 'scale-0 opacity-0'}`}></div>
+            <div className={`absolute w-96 h-96 rounded-full border border-teal-50 transition-all duration-1000 delay-150 ${isActive ? 'scale-150 opacity-10' : 'scale-0 opacity-0'}`}></div>
+
+            <div className={`w-32 h-32 rounded-full flex items-center justify-center transition-all duration-700 relative z-10 ${isActive ? 'bg-teal-500 shadow-[0_0_50px_rgba(20,184,166,0.5)] scale-110' : 'bg-gray-100'}`}>
                 <div className={`absolute w-full h-full rounded-full border-4 border-teal-200 ${isActive ? 'animate-ping' : ''}`}></div>
                 <MicIcon className={`w-12 h-12 ${isActive ? 'text-white' : 'text-gray-400'}`} />
             </div>
 
-            <div className="mt-12 text-center">
+            <div className="mt-12 text-center relative z-10">
                 <h2 className="text-3xl font-bold text-gray-800">Metta Ao Vivo</h2>
-                <p className={`text-lg mt-2 font-medium ${isActive ? 'text-teal-600' : 'text-gray-500'}`}>{status}</p>
+                <p className={`text-lg mt-2 font-medium transition-colors ${isActive ? 'text-teal-600' : 'text-gray-500'}`}>{status}</p>
             </div>
 
-            <div className="mt-10 max-w-sm text-center">
-                <p className="text-gray-500 text-sm italic">
+            <div className="mt-10 max-w-sm text-center relative z-10">
+                <p className="text-gray-500 text-sm italic leading-relaxed">
                     {isActive 
                         ? "O Metta está sintonizado com sua voz. Respire fundo e fale o que vier à mente." 
                         : "Uma sessão de voz em tempo real para momentos de crise ou necessidade de escuta imediata."}
@@ -182,9 +200,14 @@ export const MettaLivePage: React.FC = () => {
             <button
                 onClick={isActive ? stopSession : startSession}
                 disabled={isConnecting}
-                className={`mt-10 px-10 py-4 rounded-full text-lg font-bold transition-all shadow-lg active:scale-95 ${isActive ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-teal-600 hover:bg-teal-700 text-white'}`}
+                className={`mt-10 px-10 py-4 rounded-full text-lg font-bold transition-all shadow-lg active:scale-95 relative z-10 ${isActive ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-teal-600 hover:bg-teal-700 text-white animate-pulse-soft'}`}
             >
-                {isConnecting ? 'Conectando...' : (isActive ? 'Encerrar Sessão' : 'Iniciar Conversa')}
+                {isConnecting ? (
+                    <div className="flex items-center space-x-2">
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        <span>Conectando...</span>
+                    </div>
+                ) : (isActive ? 'Encerrar Sessão' : 'Iniciar Conversa')}
             </button>
         </div>
     );
