@@ -1,0 +1,24 @@
+
+{
+  "short_name": "MettaFort",
+  "name": "MettaFort - Inteligência Emocional",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/vite.svg",
+      "type": "image/svg+xml",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#0d9488",
+  "background_color": "#ffffff",
+  "orientation": "portrait",
+  "description": "Plataforma de suporte emocional e autoconhecimento baseada em Psicanálise."
+}
